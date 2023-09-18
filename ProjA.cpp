@@ -22,7 +22,8 @@ private:
 	double siz;
 
 public:
-	vector<double3> atom;
+	string name="Cubic";
+	vector<double3> point;
 	Cubic(int x, int y, int z, double size) {
 		vect.x = x;
 		vect.y = y;
@@ -31,9 +32,7 @@ public:
 		for (int i = 0; i < vect.x; i++) {
 			for (int j = 0; j <vect.y ; j++) {
 				for (int k = 0; k< vect.z; k++) {
-					double3 point = {double(i) * siz,double(j) * siz,double(k) * siz};
-					atom.push_back(point);
-
+					point.push_back({ double(i) * siz,double(j) * siz,double(k) * siz });
 				}
 			}
 		}
@@ -46,7 +45,8 @@ private:
 	double siz;
 
 public:
-	vector<double3> atom;
+	vector<double3> point;
+	string name = "BCC";
 	BCC(int x, int y, int z, double size) {
 		vect.x = x;
 		vect.y = y;
@@ -55,10 +55,8 @@ public:
 		for (int i = 0; i < vect.x; i++) {
 			for (int j = 0; j < vect.y; j++) {
 				for (int k = 0; k < vect.z; k++) {
-					double3 point = { double(i) * siz,double(j) * siz,double(k) * siz };
-					double3 point2 = { (double(i) + 0.5) * siz,(double(j) + 0.5) * siz,(double(k) + 0.5) * siz };
-					atom.push_back(point);
-					atom.push_back(point2);
+					point.push_back({ double(i) * siz,double(j) * siz,double(k) * siz });
+					point.push_back({ (double(i) + 0.5) * siz,(double(j) + 0.5) * siz,(double(k) + 0.5) * siz });
 
 				}
 			}
@@ -74,7 +72,8 @@ private:
 	double siz;
 
 public:
-	vector<double3> atom;
+	vector<double3> point;
+	string name = "FCC";
 	FCC(double x, double y, double z, double size) {
 		vect.x = x;
 		vect.y = y;
@@ -83,14 +82,10 @@ public:
 		for (int i = 0; i < vect.x; i++) {
 			for (int j = 0; j < vect.y; j++) {
 				for (int k = 0; k < vect.z; k++) {
-					double3 point = { double(i) * siz,double(j) * siz,double(k) * siz };
-					double3 point2 = { (double(i) ) * siz,(double(j) + 0.5) * siz,(double(k) + 0.5) * siz };
-					double3 point3 = { (double(i) + 0.5) * siz,(double(j) ) * siz,(double(k) + 0.5) * siz };
-					double3 point4 = { (double(i) + 0.5) * siz,(double(j) + 0.5) * siz, g(double(k)) * siz };
-					atom.push_back(point);
-					atom.push_back(point2);
-					atom.push_back(point3);
-					atom.push_back(point4);
+					point.push_back({ double(i) * siz,double(j) * siz,double(k) * siz });
+					point.push_back({ (double(i)) * siz,(double(j) + 0.5) * siz,(double(k) + 0.5) * siz });
+					point.push_back({ (double(i) + 0.5) * siz,(double(j)) * siz,(double(k) + 0.5) * siz });
+					point.push_back({ (double(i) + 0.5) * siz,(double(j) + 0.5) * siz, (double(k)) * siz });
 
 				}
 			}
@@ -104,79 +99,23 @@ private:
 
 public:
 	vector<double3> atom;
+	string name = "Diamond";
 	Diamond(double x, double y, double z, double size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
 		siz = size;
-		for (double i = 0; i < vect.x ; i++) {
-			for (double j = 0; j < vect.y ; j++) {
-				for (double k = 0; k < vect.z ; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0; i < vect.x; i++) {
-			for (double j = 0.5; j < vect.y; j++) {
-				for (double k = 0.5; k < vect.z; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.25; i < vect.x ; i++) {
-			for (double j = 0.75; j < vect.y; j++) {
-				for (double k = 0.75; k < vect.z; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.5; i < vect.x; i++) {
-			for (double j = 0; j < vect.y ; j++) {
-				for (double k = 0.5; k < vect.z; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.5; i < vect.x; i++) {
-			for (double j = 0.5; j < vect.y; j++) {
-				for (double k = 0; k < vect.z ; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.75; i < vect.x; i++) {
-			for (double j = 0.25; j < vect.y ; j++) {
-				for (double k = 0.5; k < vect.z; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.75; i < vect.x; i++) {
-			for (double j = 0.75; j < vect.y; j++) {
-				for (double k = 0.25; k < vect.z ; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
-
-				}
-			}
-		}
-		for (double i = 0.25; i < vect.x ; i++) {
-			for (double j = 0.25; j < vect.y ; j++) {
-				for (double k = 0.25; k < vect.z ; k++) {
-					double3 point = { i * siz,j * siz,k * siz };
-					atom.push_back(point);
+		for (int i = 0; i < vect.x ; i++) {
+			for (int j = 0; j < vect.y ; j++) {
+				for (int k = 0; k < vect.z ; k++) {
+					atom.push_back({ double(i) * siz,double(j) * siz,double(k) * siz });
+					atom.push_back({ double(i) * siz,(double(j)+0.5) * siz,(double(k)+0.5) * siz });
+					atom.push_back({ (double(i)+0.25) * siz,(double(j)+0.75) * siz,(double(k)+0.75) * siz });
+					atom.push_back({ (double(i)+0.5) * siz,double(j) * siz,(double(k)+0.5) * siz });
+					atom.push_back({ (double(i)+0.5) * siz,(double(j)+0.5) * siz,double(k) * siz });
+					atom.push_back({ (double(i)+0.75) * siz,(double(j)+0.25) * siz,(double(k)+0.75) * siz });
+					atom.push_back({ (double(i)+0.75) * siz,(double(j)+0.75) * siz,(double(k)+0.25) * siz });
+					atom.push_back({ (double(i)+0.25) * siz,(double(j)+0.25) * siz,(double(k)+0.25) * siz });
 
 				}
 			}
@@ -185,8 +124,8 @@ public:
 	};
 };
 
-void print(vector<double3> cell) {
-	ofstream Outttfile("particle.xyz", ofstream::trunc);
+void print(vector<double3> cell, string filename) {
+	ofstream Outttfile(filename+".xyz", ofstream::trunc);
 	Outttfile << cell.size() << "\nframe " << 0 << "\n";
 	for (double3 i : cell) {
 		Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
@@ -200,9 +139,14 @@ int main() {
 	cin >> Latconst;
 	cout << "input number of period in x y z direction" << endl;
 	cin >> x >> y >> z;
-	BCC cell1(x, y, z,Latconst);
-	print(cell1.atom);
-
+	Cubic cell_1(x, y, z,Latconst);
+	FCC cell_2(x, y, z, Latconst);
+	BCC cell_3(x, y, z, Latconst);
+	Diamond cell_4(x, y, z, Latconst);
+	print(cell_1.point, cell_1.name);
+	print(cell_2.point, cell_2.name);
+	print(cell_3.point, cell_3.name);
+	print(cell_4.atom, cell_4.name);
 	return 0;
 
 }
