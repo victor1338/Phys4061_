@@ -125,7 +125,7 @@ public:
 };
 
 void print(vector<double3> cell, string filename) {
-	ofstream Outttfile(filename+".xyz", ofstream::trunc);
+	ofstream Outttfile("./xyz/"+filename + ".xyz", ofstream::trunc);
 	Outttfile << cell.size() << "\nframe " << 0 << "\n";
 	for (double3 i : cell) {
 		Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
