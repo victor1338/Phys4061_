@@ -28,24 +28,77 @@ double Volume(vector<double3> a) {
 	return dot(a.at(0), cross(a.at(1), a.at(2)));
 };
 
-class Cubic {
-private:
+class Lattice {
+protected:
+
 	double3 vect;
 	double siz;
-
-public:
-	string name="Cubic";
+	string name;
 	vector<double3> point;
 	vector<double3> prim_vec;
-	double prim_Vol ;
+	double prim_Vol;
 	vector<double3> recip_vec;
 	double recip_Vol;
+	vector<double3> atom;
+
+public:
+
+	void print_file() {
+		ofstream Outttfile("./xyz/" + name + ".xyz", ofstream::trunc);
+		Outttfile << point.size() << "\nframe " << 0 << "\n";
+		for (auto &i : point) {
+			Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
+		}
+	};
+
+	void print_file_atom() {
+		ofstream Outttfile("./xyz/" + name + ".xyz", ofstream::trunc);
+		Outttfile << atom.size() << "\nframe " << 0 << "\n";
+		for (auto &i : atom) {
+			Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
+		}
+	};
+
+	void print_prim_Vol() {
+		cout << name << ":" << prim_Vol << endl;
+	};
+
+	void print_recip_Vol() {
+		cout << name << ":" << recip_Vol << endl;
+	};
+
+	void print_prim_vect() {
+		cout << endl << name << endl;
+		print_vect_set(prim_vec);
+	};
+
+	void print_recip_vect() {
+		cout << endl << name << endl;
+		print_vect_set(recip_vec);
+	};
+
+	void print_vect(double3 a) {
+		cout << "(" << a.x << " , " << a.y << " , " << a.z << ")";
+	}
+
+	void print_vect_set(vector<double3> a) {
+		for (auto& i : a) {
+			cout << endl;
+			print_vect(i);
+			cout << endl;
+		}
+	};
+};
+
+class Cubic : public Lattice{
+public:
+	 
 	Cubic(int x, int y, int z, double size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
 		siz = size;
-
+		name = "Cubic";
 		prim_vec.push_back({ siz,0,0 });
 		prim_vec.push_back({ 0,siz,0 });
 		prim_vec.push_back({ 0,0,siz });
@@ -65,24 +118,17 @@ public:
 	};
 };
 
-class BCC {
+class BCC:public Lattice {
 private:
-	int3 vect;
-	double siz;
+
 
 public:
-	vector<double3> point;
-	string name = "BCC";
-	vector<double3> prim_vec;
-	double prim_Vol;
-	vector<double3> recip_vec;
-	double recip_Vol;
 	BCC(int x, int y, int z, double size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
 		siz = size;
-
+		name = "BCC";
 		prim_vec.push_back({ -siz/2,siz / 2,siz / 2 });
 		prim_vec.push_back({ siz / 2,-siz / 2,siz / 2 });
 		prim_vec.push_back({ siz / 2,siz / 2,-siz / 2 });
@@ -106,25 +152,16 @@ public:
 }
 ;
 
-class FCC {
-private:
-	double3 vect;
-	double siz;
+class FCC:public Lattice{
 
 public:
-	vector<double3> point;
-	string name = "FCC";
-	vector<double3> prim_vec;
-	double prim_Vol;
-	vector<double3> recip_vec;
-	double recip_Vol;
 
 	FCC(double x, double y, double z, double size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
 		siz = size;
-
+		name = "FCC";
 		prim_vec.push_back({ 0,siz / 2,siz / 2 });
 		prim_vec.push_back({ siz / 2,0,siz / 2 });
 		prim_vec.push_back({ siz / 2,siz / 2,0 });
@@ -147,86 +184,38 @@ public:
 		}
 	};
 };
-class Diamond {
-private:
-	double3 vect;
-	double siz;
+
+class Diamond:public FCC{
 
 public:
-	vector<double3> atom;
-	string name = "Diamond";
-	Diamond(double x, double y, double z, double size) {
-		vect.x = x;
-		vect.y = y;
-		vect.z = z;
-		siz = size;
-		for (int i = 0; i < vect.x ; i++) {
-			for (int j = 0; j < vect.y ; j++) {
-				for (int k = 0; k < vect.z ; k++) {
-					atom.push_back({ double(i) * siz,double(j) * siz,double(k) * siz });
-					atom.push_back({ double(i) * siz,(double(j)+0.5) * siz,(double(k)+0.5) * siz });
-					atom.push_back({ (double(i)+0.25) * siz,(double(j)+0.75) * siz,(double(k)+0.75) * siz });
-					atom.push_back({ (double(i)+0.5) * siz,double(j) * siz,(double(k)+0.5) * siz });
-					atom.push_back({ (double(i)+0.5) * siz,(double(j)+0.5) * siz,double(k) * siz });
-					atom.push_back({ (double(i)+0.75) * siz,(double(j)+0.25) * siz,(double(k)+0.75) * siz });
-					atom.push_back({ (double(i)+0.75) * siz,(double(j)+0.75) * siz,(double(k)+0.25) * siz });
-					atom.push_back({ (double(i)+0.25) * siz,(double(j)+0.25) * siz,(double(k)+0.25) * siz });
-
-				}
-			}
+	Diamond(double x, double y, double z, double size) :FCC(x,y,z,size) {
+		name = "Diamond";
+		for (const double3 &i : point) {
+			atom.push_back({i.x,i.y,i.z});
+			atom.push_back({i.x+0.25*siz,i.y+0.25*siz,i.z+0.25*siz });
 		}
 
 	};
 };
 
-void print_vect(double3 a) {
-	cout <<"("<< a.x << " , " << a.y << " , " << a.z<<")";
-}
 
-void print_vect_set(vector<double3> a) {
-	for (auto& i : a) {
-		cout << endl;
-		print_vect(i);
-		cout << endl;
-	}
-};
-
-void print(vector<double3> cell, string filename) {
-	ofstream Outttfile("./xyz/"+filename + ".xyz", ofstream::trunc);
-	Outttfile << cell.size() << "\nframe " << 0 << "\n";
-	for (double3 i : cell) {
-		Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
-	}
-};
-
-void print_volume(double a, double b, double c, double d, double e, double f) {
+void print_volume(Cubic& a, BCC& b, FCC& c) {
 	cout << "The volume of primitive cell of Cubic, BCC, FCC are:" << endl;
-	cout << a << " " << b << " " << c << endl;
+	a.print_prim_Vol(); b.print_prim_Vol(); c.print_prim_Vol();
 	cout << "The volume of reciprocal primitive cell of Cubic, BCC, FCC are:" << endl;
-	cout << d << " " << e << " " << f << endl;
+	a.print_recip_Vol(); b.print_recip_Vol(); c.print_recip_Vol();
 };
 
 void print_vector(Cubic &a, BCC &b, FCC &c) {
 	cout << "The primitive vector for each lattice cell are:" << endl;
-	cout << endl << a.name << endl;
-	print_vect_set(a.prim_vec);
-
-	cout << endl << b.name << endl;
-	print_vect_set(b.prim_vec);
-
-	cout << endl << c.name << endl;
-	print_vect_set(c.prim_vec);
+	a.print_prim_vect();
+	b.print_prim_vect();
+	c.print_prim_vect();
 
 	cout << "The reciprocal vector for each lattice cell are:" << endl;
-
-	cout << endl << a.name << endl;
-	print_vect_set(a.recip_vec);
-
-	cout << endl << b.name << endl;
-	print_vect_set(b.recip_vec);
-
-	cout << endl << c.name << endl;
-	print_vect_set(c.recip_vec);
+	a.print_recip_vect();
+	b.print_recip_vect();
+	c.print_recip_vect();
 };
 
 int main() {
@@ -239,16 +228,15 @@ int main() {
 	Cubic cell_1(x, y, z,Latconst);
 	BCC cell_2(x, y, z, Latconst);
 	FCC cell_3(x, y, z, Latconst);
-	Diamond cell_4(x, y, z, Latconst);
-	
-	print_volume(cell_1.prim_Vol, cell_2.prim_Vol, cell_3.prim_Vol, cell_1.recip_Vol, cell_2.recip_Vol, cell_3.recip_Vol);
+	Diamond diamond(x, y, z, Latconst);
+
 	print_vector(cell_1, cell_2,cell_3);
+	print_volume(cell_1, cell_2, cell_3);
 
-
-	print(cell_1.point, cell_1.name);
-	print(cell_2.point, cell_2.name);
-	print(cell_3.point, cell_3.name);
-	print(cell_4.atom, cell_4.name);
+	cell_1.print_file();
+	cell_2.print_file();
+	cell_3.print_file();
+	diamond.print_file_atom();
 	return 0;
 
 }

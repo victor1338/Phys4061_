@@ -1,4 +1,18 @@
-2
+16
 frame 0
 Particle 0 0 0
 Particle 2.5 2.5 2.5
+Particle 0 0 5
+Particle 2.5 2.5 7.5
+Particle 0 5 0
+Particle 2.5 7.5 2.5
+Particle 0 5 5
+Particle 2.5 7.5 7.5
+Particle 5 0 0
+Particle 7.5 2.5 2.5
+Particle 5 0 5
+Particle 7.5 2.5 7.5
+Particle 5 5 0
+Particle 7.5 7.5 2.5
+Particle 5 5 5
+Particle 7.5 7.5 7.5
