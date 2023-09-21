@@ -5,12 +5,23 @@
 #include <fstream>
 #include <cmath>
 #include <numeric>
-struct double3 {
+#include <stdio.h>
+
+typedef struct double3 {
 	double x, y, z;
+}double3;
+
+double3 difference(double3 b, double3 a) {
+	return { a.x - b.x,a.y - b.y,a.z - b.z };
 };
+double3 sum(double3 a, double3 b) {
+	return { a.x + b.x,a.y + b.y,a.z + b.z };
+};
+
 struct int3 {
 	int x, y, z;
 };;
+
 using namespace std;
 double const pi = 3.14159265358979323846;
 double const c = 2997924.58; //in armstrong per ps
@@ -28,6 +39,10 @@ double Volume(vector<double3> a) {
 	return dot(a.at(0), cross(a.at(1), a.at(2)));
 };
 
+double norm(double3 a) {
+	return sqrt(pow(a.x, 2)+pow(a.y,2)+pow(a.z,2));
+};
+
 class Lattice {
 protected:
 
@@ -39,9 +54,16 @@ protected:
 	double prim_Vol;
 	vector<double3> recip_vec;
 	double recip_Vol;
+	vector<double3> conv_vec;
 	vector<double3> atom;
 
 public:
+
+	Lattice(double siz) {
+		conv_vec.push_back({ siz,0,0 });
+		conv_vec.push_back({ 0,siz,0 });
+		conv_vec.push_back({ 0,0,siz });
+	};
 
 	void print_file() {
 		ofstream Outttfile("./xyz/" + name + ".xyz", ofstream::trunc);
@@ -58,6 +80,31 @@ public:
 			Outttfile << "Particle" << " " << i.x << " " << i.y << " " << i.z << "\n";
 		}
 	};
+
+	void PBC(double3 &a, double3 b = {0,0,0}) {
+		double3 r= difference(b, a);
+		if (r.x > siz/2) {
+			r.x = fmod(r.x + siz / 2, siz) - siz / 2;
+		};
+		if (r.x <= -siz/2||r.x==-siz/2) {
+			r.x = fmod(r.x - siz / 2, siz) + siz / 2;
+		};
+		if (r.y >  siz/2) {
+			r.y = fmod(r.y + siz / 2, siz) - siz / 2;
+		};
+		if (r.y <= - siz/2||r.y==-siz/2) {
+			r.y = fmod(r.y - siz / 2, siz) + siz / 2;
+		};
+		if (r.z > siz/2) {
+			r.z = fmod(r.z + siz / 2, siz) - siz / 2;
+		};
+		if (r.z <= -siz/2||r.z==-siz/2) {
+			r.z = fmod(r.z - siz / 2, siz) + siz / 2;
+		};
+		a = sum(r, b);
+
+	}
+
 
 	void print_prim_Vol() {
 		cout << name << ":" << prim_Vol << endl;
@@ -93,7 +140,7 @@ public:
 class Cubic : public Lattice{
 public:
 	 
-	Cubic(int x, int y, int z, double size) {
+	Cubic(int x, int y, int z, double size):Lattice(size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
@@ -123,7 +170,7 @@ private:
 
 
 public:
-	BCC(int x, int y, int z, double size) {
+	BCC(int x, int y, int z, double size):Lattice (size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
@@ -156,7 +203,7 @@ class FCC:public Lattice{
 
 public:
 
-	FCC(double x, double y, double z, double size) {
+	FCC(double x, double y, double z, double size) :Lattice(size) {
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
@@ -229,6 +276,13 @@ int main() {
 	BCC cell_2(x, y, z, Latconst);
 	FCC cell_3(x, y, z, Latconst);
 	Diamond diamond(x, y, z, Latconst);
+	double3 vector;
+	cout << "input an coordinate in \( x,y,z \)" << endl;
+	cin >> vector.x >> vector.y >> vector.z;
+	cout << "it's cooredinate after applying periodic boundary condition in \( x,y,z \) is: (range is ["<<-Latconst*0.5<<","<<Latconst*0.5 << "])" << endl<<endl;
+	cell_1.PBC(vector, {1,1,1});
+	cout << vector.x << " " << vector.y << " " << vector.z << endl;
+
 
 	print_vector(cell_1, cell_2,cell_3);
 	print_volume(cell_1, cell_2, cell_3);
