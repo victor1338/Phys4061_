@@ -7,14 +7,22 @@
 #include <numeric>
 #include <stdio.h>
 #include <iomanip>
-#include <map>
-
+#include <Eigen/Eigen/Dense>
+#include <Eigen/Eigen/LU>
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
 typedef struct double3 {
 	double x, y, z;
 }double3;
 typedef struct lattice_vector {
 	double3 a1, a2, a3;
 };
+Vector3d ToVector(double3 a) {
+	return { a.x,a.y,a.z };
+};
+double3 Todouble3(Vector3d a) {
+	return { a(0),a(1),a(2) };
+}
 
 double3 difference(double3 b, double3 a) {
 	return { a.x - b.x,a.y - b.y,a.z - b.z };
@@ -22,6 +30,9 @@ double3 difference(double3 b, double3 a) {
 double3 sum(double3 a, double3 b) {
 	return { a.x + b.x,a.y + b.y,a.z + b.z };
 };
+double3 operator+(double3 a,double3 b) {
+	return { a.x + b.x,a.y + b.y,a.z + b.z };
+}
 
 struct int3 {
 	int x, y, z;
@@ -62,7 +73,7 @@ protected:
 	double recip_Vol;
 	vector<double3> conv_vec;
 	vector<double3> atom;
-
+	Matrix3d con_vec_mat;
 public:
 
 
@@ -83,7 +94,7 @@ public:
 		}
 	};
 
-	void PBC(double3 &a, double3 b = {0,0,0}) {
+	void PBC_Cubic(double3 &a, double3 b = {0,0,0}) {
 		double3 r= difference(b, a);
 		if (r.x > siz/2) {
 			r.x = fmod(r.x + siz / 2, siz) - siz / 2;
@@ -107,19 +118,65 @@ public:
 
 	}
 
+	void PBC_prim(double3& a, double3 b = { 0,0,0 }, double3 vector = {0,0,0}) {
+		double3 r = difference(b, a);
+
+		if (vector.x != 0) {
+			if (r.x > vector.x / 2) {
+				r.x = fmod(r.x + vector.x / 2, vector.x) - vector.x / 2;
+			};
+			if (r.x <= -vector.x / 2 || r.x == -vector.x / 2) {
+				r.x = fmod(r.x - vector.x / 2, vector.x) + vector.x / 2;
+			};
+		};
+
+		if (vector.y != 0) {
+			if (r.y > vector.y / 2) {
+				r.y = fmod(r.y + vector.y / 2, vector.y) - vector.y / 2;
+			};
+			if (r.y <= -vector.y / 2 || r.y == -vector.y / 2) {
+				r.y = fmod(r.y - vector.y / 2, vector.y) + vector.y / 2;
+			};
+		};
+		if (vector.z != 0) {
+			if (r.z > vector.z / 2) {
+				r.z = fmod(r.z + vector.z / 2, vector.z) - vector.z / 2;
+			};
+			if (r.z <= -vector.z / 2 || r.z == -vector.z / 2) {
+				r.z = fmod(r.z - vector.z / 2, vector.z) + vector.z / 2;
+			};
+		};
+
+		a = sum(r, b);
+	}
+
+	void PBC(double3& a, double3 b = { 0,0,0 }) {
+		for (auto const& i : conv_vec) {
+			PBC_prim( a, b, i);
+		}
+	}
+
 	void evaluate(int n) {
 		for (auto& i : point) {
 			PBC(i, point.at(n));
 		};
 	}
+
 	void evaluate_atom(int n) {
 		for (auto& i : atom) {
 			PBC(i, atom.at(n));
 		};
 	}
 
-	double3 frac_coor(double3& a) {
+	double3 frac_coor_othor(double3& a) {
 		return { a.x / siz,a.y / siz,a.z / siz };
+	};
+
+	void frac_coor(double3& a) {
+		Vector3d b(a.x,a.y,a.z);
+		b = con_vec_mat.inverse() * b;
+		a = {b(0),b(1),b(2)};
+
 	};
 
 	void print_prim_Vol() {
@@ -142,9 +199,7 @@ public:
 
 	void print_vect(double3 a) {
 		cout << "(" << a.x << " , " << a.y << " , " << a.z << ")";
-	};
-
-	
+	};	
 
 	void print_vect_set(vector<double3> a) {
 		for (auto& i : a) {
@@ -167,6 +222,13 @@ public:
 		vect.z = z;
 		siz = size;
 		name = "Cubic";
+		
+		for (int i = 0; i < 3; i++) {
+			con_vec_mat(0, i) = conv_vec.at(i).x;
+			con_vec_mat(1, i) = conv_vec.at(i).y;
+			con_vec_mat(2, i) = conv_vec.at(i).z;
+		}
+
 		prim_vec.push_back({ siz,0,0 });
 		prim_vec.push_back({ 0,siz,0 });
 		prim_vec.push_back({ 0,0,siz });
@@ -195,6 +257,13 @@ public:
 		conv_vec.push_back({ siz,0,0 });
 		conv_vec.push_back({ 0,siz,0 });
 		conv_vec.push_back({ 0,0,siz });
+
+		for (int i = 0; i < 3; i++) {
+			con_vec_mat(0, i) = conv_vec.at(i).x;
+			con_vec_mat(1, i) = conv_vec.at(i).y;
+			con_vec_mat(2, i) = conv_vec.at(i).z;
+		}
+
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
@@ -226,28 +295,35 @@ class Sim_Prim: public Lattice {
 private:
 
 public:
-	Sim_Prim(int x, int y , int z, double3 size):Lattice() {
-		sizz = size;
-		conv_vec.push_back({ sizz.x,0,0 });
-		conv_vec.push_back({ 0,sizz.y,0 });
-		conv_vec.push_back({ 0,0,sizz.z });
+	Sim_Prim(int x, int y , int z, lattice_vector la_vec):Lattice() {
+		conv_vec.push_back(la_vec.a1);
+		conv_vec.push_back(la_vec.a2);
+		conv_vec.push_back(la_vec.a3);
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
-		name = "Simple Orthorhombic";
-		prim_vec.push_back({ sizz.x,0,0 });
-		prim_vec.push_back({ 0,sizz.y,0 });
-		prim_vec.push_back({ 0,0,sizz.z });
+		name = "Simple_Primitive_cell";
+		prim_vec.push_back(la_vec.a1);
+		prim_vec.push_back(la_vec.a2);
+		prim_vec.push_back(la_vec.a3);
 		prim_Vol = Volume(prim_vec);
 		recip_vec.push_back({ cross(prim_vec.at(1),prim_vec.at(2),2.0 * pi / prim_Vol) });
 		recip_vec.push_back({ cross(prim_vec.at(2),prim_vec.at(0),2.0 * pi / prim_Vol) });
 		recip_vec.push_back({ cross(prim_vec.at(0),prim_vec.at(1),2.0 * pi / prim_Vol) });
 		recip_Vol = Volume(recip_vec);
 
+		for (int i = 0; i < 3; i++) {
+			con_vec_mat(0, i) = conv_vec.at(i).x;
+			con_vec_mat(1, i) = conv_vec.at(i).y;
+			con_vec_mat(2, i) = conv_vec.at(i).z;
+		}
+
 		for (int i = 0; i < vect.x; i++) {
 			for (int j = 0; j < vect.y; j++) {
 				for (int k = 0; k < vect.z; k++) {
-					point.push_back({ double(i) * sizz.x,double(j) * sizz.y,double(k) * sizz.z });
+					point.push_back({	double(i) * la_vec.a1.x + double(j) * la_vec.a2.x + double(k) * la_vec.a3.x , 
+										double(i) * la_vec.a1.y + double(j) * la_vec.a2.y + double(k) * la_vec.a3.y ,
+										double(i) * la_vec.a1.z + double(j) * la_vec.a2.z + double(k) * la_vec.a3.z });
 				}
 			}
 		}
@@ -256,11 +332,11 @@ public:
 
 class Atom_Othor : public Sim_Prim {
 public:
-	Atom_Othor(int x, int y, int z, double3 size, string atom_name, map<int,double3> Basis) : Sim_Prim(x,y,z,size) {
+	Atom_Othor(int x, int y, int z, lattice_vector la_vec, string atom_name, vector<double3> Basis) : Sim_Prim(x,y,z,la_vec) {
 		name = atom_name;
 		for (const double3& i : point) {
 			for (auto const& j : Basis) {
-				atom.push_back({ i.x + j.second.x*sizz.x,i.y + j.second.y*sizz.y  ,i.z + j.second.z*sizz.z });
+				atom.push_back(i+(Todouble3(con_vec_mat*ToVector(j))));
 			}
 		}
 
@@ -275,6 +351,13 @@ public:
 		conv_vec.push_back({ siz,0,0 });
 		conv_vec.push_back({ 0,siz,0 });
 		conv_vec.push_back({ 0,0,siz });
+
+		for (int i = 0; i < 3; i++) {
+			con_vec_mat(0, i) = conv_vec.at(i).x;
+			con_vec_mat(1, i) = conv_vec.at(i).y;
+			con_vec_mat(2, i) = conv_vec.at(i).z;
+		}
+
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
@@ -336,22 +419,25 @@ void print_vector(Cubic &a, BCC &b, FCC &c) {
 	c.print_recip_vect();
 };
 
+
 int main() {
 	int n = 0;
+	int task = 0;
 	int Num = 0;
-	double3 vector;
+	double3 vectorr;
+	vector<double3> basis;
 	double Latconst;
 	int x, y, z;
 	Cubic* cell_1 ;
 	BCC* cell_2 ;
 	FCC* cell_3 ;
 	Diamond* diamond ;
-	Atom_Othor* cell_4;
-	map<int, double3> basis;
+	Sim_Prim* cell_4;
+	Atom_Othor* cell_5;
 	string atom_name;
 	lattice_vector latticee;
-home:
 
+home:
 	cout << "This is Project A in PHYS_4061" << endl<<endl;
 	cout << setprecision(3);
 	cout << "Select the Lab number to start the simulation (e.g. input 1 will go to Lab_1 ), or 0 to end the program" << endl;
@@ -396,66 +482,102 @@ Lab_1:
 Lab_2:
 
 	cout << "Lab 2: " << endl;
-	cout << "input lattice constant" << endl;
-	cin >> Latconst;
-	cout << "input number of period in x y z direction" << endl;
-	cin >> x >> y >> z;
-	cell_1 = new Cubic(x, y, z, Latconst);
-	cell_2 = new BCC(x, y, z, Latconst);
-	cell_3 = new FCC(x, y, z, Latconst);
+	cout << "Select the task number" << endl;
+	cout << "1: Volume and vector of primitive cell and reciprocal cell " << endl << "2: Return fractional coordinate of input cooredinate with respect to origin" << endl << "3: Neighbor list" << endl << "0: Back to main menu" << endl;
+	cin >> task;
+	cout << "-----------------------------------------------------------------------------------------------" << endl << endl;
+	switch (task) {
+	case 1:
+		goto Task_2_1;
+		break;
+	case 2:
+		goto Task_2_2;
+		break;
+	case 3:
+		goto Task_2_3;
+		break;
+	case 0:
+		goto home;
+		break;
+	};
 	diamond = new Diamond(x, y, z, Latconst);
 
 Task_2_1:
+	// task 1
+	cout << "Volume and vector of primitive cell and reciprocal cell" << endl;
+	cout << "input lattice constant" << endl;
+	cin >> Latconst;
 
-	// task 1 
+	cell_1 = new Cubic(2, 2, 2, Latconst);
+	cell_2 = new BCC(2, 2, 2, Latconst);
+	cell_3 = new FCC(2, 2, 2, Latconst);
+
 	print_volume(*cell_1, *cell_2, *cell_3);
 	print_vector(*cell_1, *cell_2, *cell_3);
+	delete cell_1;
+	delete cell_2;
+	delete cell_3;
+	cout << "-----------------------------------------------------------------------------------------------" << endl << endl;
+	goto Lab_2;
+
 
 Task_2_2:
-
 	// task 2
-	cell_1 = new Cubic(x, y, z, Latconst);
+	cout << "Return fractional coordinate of input cooredinate with respect to origin" << endl;
+Re:
+
+	cout << "input a_1 in (x,y,z)" << endl;
+	cin >> latticee.a1.x >> latticee.a1.y >> latticee.a1.z;
+	cout << "input a_2 in (x,y,z)" << endl;
+	cin >> latticee.a2.x >> latticee.a2.y >> latticee.a2.z;
+	cout << "input a_3 in (x,y,z)" << endl;
+	cin >> latticee.a3.x >> latticee.a3.y >> latticee.a3.z;
+	if (dot(latticee.a1, cross(latticee.a2, latticee.a3)) == 0) {
+		cout << "No coplanar sets of vectors! Plaese eneter new sets of vectors" << endl;
+		goto Re;
+	}
+	cell_4 = new Sim_Prim(2, 2, 2, latticee);
+
+
 	cout << "input an coordinate in \( x,y,z \)" << endl;
-	cin >> vector.x >> vector.y >> vector.z;
-	cout << "it's cooredinate after applying periodic boundary condition in \( x,y,z \) is: (range in absolute coordinate is ["<<-Latconst*0.5<<","<<Latconst*0.5 << "])" << endl<<endl;
-	cell_1->PBC(vector);
-	cout << "(" << vector.x << " , " << vector.y << " , " << vector.z << ")" << endl;
-	vector = cell_1->frac_coor(vector);
-	cout << "The respective frational coordinate is: ( in range of (0.5,0.5] )";
-	cout << "(" << vector.x << " , " << vector.y << " , " << vector.z << ")" << endl;
+	cin >> vectorr.x >> vectorr.y >> vectorr.z;
+	cout << "it's cooredinate after applying periodic boundary condition in \( x,y,z \) is: "<<endl;
+	cell_4->PBC(vectorr);
+	cout << "(" << vectorr.x << " , " << vectorr.y << " , " << vectorr.z << ")" << endl;
+	cell_4->frac_coor(vectorr);
+	cout << "The respective frational coordinate is: ( in range of (0.5,0.5] )"<<endl;
+	cout << "(" << vectorr.x << " , " << vectorr.y << " , " << vectorr.z << ")" << endl;
+
+	delete cell_4;
+	cout << "-----------------------------------------------------------------------------------------------" << endl << endl;
+	goto Lab_2;
 
 Task_2_3:
-	Num = 0;
-	
+
+	Num = 0;	
 	cout << "input a_1 in (x,y,z)" << endl;
-	cin >> vector.x >> vector.y >> vector.z;
-	latticee.a1 = vector;
+	cin >> latticee.a1.x >> latticee.a1.y >> latticee.a1.z;
 	cout << "input a_2 in (x,y,z)" << endl;
-	cin >> vector.x >> vector.y >> vector.z;
-	latticee.a2 = vector;
+	cin >> latticee.a2.x >> latticee.a2.y >> latticee.a2.z;
 	cout << "input a_3 in (x,y,z)" << endl;
-	cin >> vector.x >> vector.y >> vector.z;
-	latticee.a3 = vector;
-	cout << "input number of atom" << endl;
+	cin >> latticee.a3.x >> latticee.a3.y >> latticee.a3.z;
+	cout << "Basis setup: " << endl;
+	cout << "input number of atom in the basis" << endl;
 	cin >> Num;
+
 	for (int i = 0; i < Num; i++) {
-		cout << "Input the fractional coordinate of " << endl;
+		cout << "Input the fractional coordinate of atom "<<i+1 << endl;
+		basis.push_back({});
+		cin >> basis.at(i).x >> basis.at(i).y >> basis.at(i).z;
 	}
 
+	cout << "input atom name" << endl;
+	cin >> atom_name;
 
-
-	basis.insert(pair<int, double3>(Num, vector));
-	cell_4 = new Atom_Othor(x, y, z, {}, "asdasd", basis);
+	cell_5 = new Atom_Othor(2, 2, 2, latticee, atom_name, {});
 	
-
-	// input a_1 a_2 a_3 to form orthorhombic/Triclinic/
-	//PBC on point n in the different structure
-
-
-
-
-
-	goto home;
+	delete cell_5;
+	goto Lab_2;
 
 exit:
 
