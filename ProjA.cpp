@@ -76,7 +76,13 @@ protected:
 	Matrix3d con_vec_mat;
 public:
 
-
+	int atom_number() {
+		return atom.size();
+	}
+	void print_atom_position(int n) {
+		cout << "The position of atom" << n << "is:";
+		cout << "(" << atom.at(n).x << " " << atom.at(n).y << " " << atom.at(n).z << ")" << endl;
+	}
 
 	void print_file() {
 		ofstream Outttfile("./xyz/" + name + ".xyz", ofstream::trunc);
@@ -118,14 +124,16 @@ public:
 
 	}
 
-	void PBC_prim(double3& a, double3 b = { 0,0,0 }, double3 vector = {0,0,0}) {
+	void PBC_prim(double3& a, double3 b = { 0,0,0 }, double3 vector = {0,0,0}, bool neigbour=false) {
 		double3 r = difference(b, a);
-
+		if (neigbour) {
+			vector = { vector.x * 2,vector.y * 2,vector.z * 2 };
+		}
 		if (vector.x != 0) {
 			if (r.x > vector.x / 2) {
 				r.x = fmod(r.x + vector.x / 2, vector.x) - vector.x / 2;
 			};
-			if (r.x <= -vector.x / 2 || r.x == -vector.x / 2) {
+			if (r.x < -vector.x / 2) {
 				r.x = fmod(r.x - vector.x / 2, vector.x) + vector.x / 2;
 			};
 		};
@@ -134,7 +142,7 @@ public:
 			if (r.y > vector.y / 2) {
 				r.y = fmod(r.y + vector.y / 2, vector.y) - vector.y / 2;
 			};
-			if (r.y <= -vector.y / 2 || r.y == -vector.y / 2) {
+			if (r.y < -vector.y / 2) {
 				r.y = fmod(r.y - vector.y / 2, vector.y) + vector.y / 2;
 			};
 		};
@@ -142,7 +150,7 @@ public:
 			if (r.z > vector.z / 2) {
 				r.z = fmod(r.z + vector.z / 2, vector.z) - vector.z / 2;
 			};
-			if (r.z <= -vector.z / 2 || r.z == -vector.z / 2) {
+			if (r.z < -vector.z / 2 ) {
 				r.z = fmod(r.z - vector.z / 2, vector.z) + vector.z / 2;
 			};
 		};
@@ -150,21 +158,21 @@ public:
 		a = sum(r, b);
 	}
 
-	void PBC(double3& a, double3 b = { 0,0,0 }) {
+	void PBC(double3& a, double3 b = { 0,0,0 },bool nei=false) {
 		for (auto const& i : conv_vec) {
-			PBC_prim( a, b, i);
+			PBC_prim( a, b, i,nei);
 		}
 	}
 
-	void evaluate(int n) {
+	void evaluate(int n,bool nei=false) {
 		for (auto& i : point) {
-			PBC(i, point.at(n));
+			PBC(i, point.at(n),nei);
 		};
 	}
 
-	void evaluate_atom(int n) {
+	void evaluate_atom(int n,bool nei=false) {
 		for (auto& i : atom) {
-			PBC(i, atom.at(n));
+			PBC(i, atom.at(n),nei);
 		};
 	}
 
@@ -208,19 +216,87 @@ public:
 			cout << endl;
 		}
 	};
+
+	void find_neighbor_list(int i) {
+		vector<double3>* a;
+		if (atom.size() == 0) {
+			evaluate(i,true);
+			a = &point;
+		}
+		else {
+			evaluate_atom(i,true);
+			a = &atom;
+		}
+		vector<double> distance;
+		for (auto& k : *a  ) {
+			distance.push_back(norm(difference(k, a->at(i))));
+		}
+		distance.at(i) = {};
+		int n = 0; double min_r = min_value(distance);
+		vector<int> list;
+		for (auto& k : distance) {
+			if (min_r - 2048.0 * DBL_MIN <= k && k <= min_r + 2048.0 * DBL_MIN) {
+				list.push_back(n);
+			}
+			n++;
+		}
+		if (min_r==norm(conv_vec.at(0))|| min_r == norm(conv_vec.at(1))|| min_r == norm(conv_vec.at(2))) {
+			cout << "The first - neibouring is the image of the particle itself" << endl;
+			cout << "The distance is "<< min_r<<endl;
+			cout << "The coordinates of the self image particles of the nearest neibouring are:" << endl;
+
+			for (auto& k : min_Vector(min_r)) {
+				cout << "(" <<a->at(i).x + conv_vec.at(k).x << " " << a->at(i).y + conv_vec.at(k).y << " " << a->at(i).z + conv_vec.at(k).z << ")" << endl;
+				cout << "(" << -1 * (a->at(i).x + conv_vec.at(k).x) << " " << -1 * (a->at(i).y + conv_vec.at(k).y) << " " << -1 * (a->at(i).z + conv_vec.at(k).z) << ")" << endl;
+			}
+
+			return;
+		};
+		cout << "Distance for first - neibouring particle for atom"<<i<<" is : " << min_r<<endl;
+		cout << "input distance cutoff" << endl; double cutoff; cin >> cutoff;
+		cout << "The coordinate are" << endl<<"atom"<<i << " (" << a->at(i).x << " " << a->at(i).y << " " << a->at(i).z << ")" << endl;
+		for (auto& k : list) {
+			cout << "atom" << k << "(" << a->at(k).x << " " << a->at(k).y << " " << a->at(k).z << ")" << endl;
+		}
+		
+	}
+	double min_value(vector<double>& a) {
+		double min = *max_element(a.begin(), a.end());
+		for (auto& i : a) {
+			if (min > i && i != 0) {
+				min = i;
+			}
+		}
+		return min;
+	};
+	vector<int> min_Vector(double &r) {
+		vector<int> list;
+		if (r == norm(conv_vec.at(0))) {
+			list.push_back(0);
+		}
+		if (r == norm(conv_vec.at(1))) {
+			list.push_back(1);
+		}
+		if (r == norm(conv_vec.at(2))) {
+			list.push_back(2);
+		}
+		return list;
+	}
+	
 };
 
 class Cubic : public Lattice{
 public:
 	 
 	Cubic(int x, int y, int z, double size):Lattice() {
+		siz = size;
 		conv_vec.push_back({ siz,0,0 });
 		conv_vec.push_back({ 0,siz,0 });
 		conv_vec.push_back({ 0,0,siz });
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
-		siz = size;
+
 		name = "Cubic";
 		
 		for (int i = 0; i < 3; i++) {
@@ -254,6 +330,7 @@ private:
 
 public:
 	BCC(int x, int y, int z, double size) :Lattice() {
+		siz = size;
 		conv_vec.push_back({ siz,0,0 });
 		conv_vec.push_back({ 0,siz,0 });
 		conv_vec.push_back({ 0,0,siz });
@@ -267,7 +344,6 @@ public:
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
-		siz = size;
 		name = "BCC";
 		prim_vec.push_back({ -siz / 2,siz / 2,siz / 2 });
 		prim_vec.push_back({ siz / 2,-siz / 2,siz / 2 });
@@ -348,6 +424,7 @@ class FCC:public Lattice{
 public:
 
 	FCC(int x, int y, int z, double size) :Lattice() {
+		siz = size;
 		conv_vec.push_back({ siz,0,0 });
 		conv_vec.push_back({ 0,siz,0 });
 		conv_vec.push_back({ 0,0,siz });
@@ -361,7 +438,7 @@ public:
 		vect.x = x;
 		vect.y = y;
 		vect.z = z;
-		siz = size;
+
 		name = "FCC";
 		prim_vec.push_back({ 0,siz / 2,siz / 2 });
 		prim_vec.push_back({ siz / 2,0,siz / 2 });
@@ -467,6 +544,7 @@ Lab_1:
 	cell_3 = new FCC(x, y, z, Latconst);
 	diamond = new Diamond(x, y, z, Latconst);
 
+
 	cell_1->print_file();
 	cell_2->print_file();
 	cell_3->print_file();
@@ -554,6 +632,8 @@ Re:
 
 Task_2_3:
 
+	cout << "neibouring list" << endl;
+
 	Num = 0;	
 	cout << "input a_1 in (x,y,z)" << endl;
 	cin >> latticee.a1.x >> latticee.a1.y >> latticee.a1.z;
@@ -574,9 +654,15 @@ Task_2_3:
 	cout << "input atom name" << endl;
 	cin >> atom_name;
 
-	cell_5 = new Atom_Othor(2, 2, 2, latticee, atom_name, {});
-	
+	cell_5 = new Atom_Othor(2, 2, 2, latticee, atom_name, basis);
+	cout << "Which atom number you would like to evaluate? There are total " << cell_5->atom_number()<<" atoms"<<endl;
+	cin >> n;
+	cout << "You are evaluating atom"<<n<<endl;
+	cell_5->print_atom_position(n);
+	cell_5->find_neighbor_list(n);
 	delete cell_5;
+	basis = {};
+	cout << "-----------------------------------------------------------------------------------------------" << endl << endl;
 	goto Lab_2;
 
 exit:
