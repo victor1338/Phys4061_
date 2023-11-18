@@ -7,8 +7,11 @@
 #include <numeric>
 #include <stdio.h>
 #include <iomanip>
-#include <Eigen/Eigen/Dense>
-#include <Eigen/Eigen/LU>
+#include <../package/Eigen/Eigen/Dense>
+#include <../package/Eigen/Eigen/LU>
+#include <map>
+double const Well = 1;
+
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 typedef struct double3 {
@@ -74,7 +77,10 @@ protected:
 	vector<double3> conv_vec;
 	vector<double3> atom;
 	Matrix3d con_vec_mat;
+
 public:
+
+	
 
 	int atom_number() {
 		return atom.size();
@@ -124,55 +130,54 @@ public:
 
 	}
 
-	void PBC_prim(double3& a, double3 b = { 0,0,0 }, double3 vector = {0,0,0}, bool neigbour=false) {
+	void PBC_prim(double3& a, double3 b = { 0,0,0 }, double3 vector = {0,0,0}, double n=1) {
 		double3 r = difference(b, a);
-		if (neigbour) {
-			vector = { vector.x * 2,vector.y * 2,vector.z * 2 };
-		}
 		if (vector.x != 0) {
-			if (r.x > vector.x / 2) {
-				r.x = fmod(r.x + vector.x / 2, vector.x) - vector.x / 2;
+			if (r.x > vector.x*n / 2) {
+				r.x = fmod(r.x + vector.x*n / 2, vector.x*n) - vector.x*n / 2;
 			};
-			if (r.x < -vector.x / 2) {
-				r.x = fmod(r.x - vector.x / 2, vector.x) + vector.x / 2;
+			if (r.x < -vector.x*n / 2) {
+				r.x = fmod(r.x - vector.x*n / 2, vector.x*n) + vector.x*n / 2;
 			};
 		};
 
 		if (vector.y != 0) {
-			if (r.y > vector.y / 2) {
-				r.y = fmod(r.y + vector.y / 2, vector.y) - vector.y / 2;
+			if (r.y > vector.y*n/ 2) {
+				r.y = fmod(r.y + vector.y*n / 2, vector.y*n) - vector.y*n / 2;
 			};
-			if (r.y < -vector.y / 2) {
-				r.y = fmod(r.y - vector.y / 2, vector.y) + vector.y / 2;
+			if (r.y < -vector.y*n/ 2) {
+				r.y = fmod(r.y - vector.y*n / 2, vector.y*n) + vector.y*n / 2;
 			};
 		};
 		if (vector.z != 0) {
-			if (r.z > vector.z / 2) {
-				r.z = fmod(r.z + vector.z / 2, vector.z) - vector.z / 2;
+			if (r.z > vector.z*n/ 2) {
+				r.z = fmod(r.z + vector.z*n / 2, vector.z*n) - vector.z*n / 2;
 			};
-			if (r.z < -vector.z / 2 ) {
-				r.z = fmod(r.z - vector.z / 2, vector.z) + vector.z / 2;
+			if (r.z < -vector.z*n / 2 ) {
+				r.z = fmod(r.z - vector.z*n / 2, vector.z*n) + vector.z*n / 2;
 			};
 		};
 
 		a = sum(r, b);
 	}
 
-	void PBC(double3& a, double3 b = { 0,0,0 },bool nei=false) {
-		for (auto const& i : conv_vec) {
-			PBC_prim( a, b, i,nei);
-		}
+
+
+	void PBC(double3& a, double3 b = { 0,0,0 }) {
+		PBC_prim(a, b, conv_vec.at(0), vect.x);
+		PBC_prim(a, b, conv_vec.at(1), vect.y);
+		PBC_prim(a, b, conv_vec.at(2), vect.z);
 	}
 
-	void evaluate(int n,bool nei=false) {
-		for (auto& i : point) {
-			PBC(i, point.at(n),nei);
+	void evaluate(int n, vector<double3>& image ) {
+		for (auto& i : image) {
+			PBC(i, point.at(n));
 		};
 	}
 
-	void evaluate_atom(int n,bool nei=false) {
-		for (auto& i : atom) {
-			PBC(i, atom.at(n),nei);
+	void evaluate_atom(int n, vector<double3>& image ) {
+		for (auto& i : image) {
+			PBC(i, atom.at(n));
 		};
 	}
 
@@ -217,19 +222,28 @@ public:
 		}
 	};
 
-	void find_neighbor_list(int i) {
-		vector<double3>* a;
+	void evaluate_image(vector<double3> &image, int i) {
 		if (atom.size() == 0) {
-			evaluate(i,true);
-			a = &point;
+			image = point;
+			evaluate(i, image);
+
 		}
 		else {
-			evaluate_atom(i,true);
-			a = &atom;
+			image = atom;
+			evaluate_atom(i,  image);
 		}
+	}
+
+
+	void find_neighbor_list(int i) {
+		vector<double3> a;
+		double3 control;
+		
+		evaluate_image(a,i);
+
 		vector<double> distance;
-		for (auto& k : *a  ) {
-			distance.push_back(norm(difference(k, a->at(i))));
+		for (auto& k : a  ) {
+			distance.push_back(norm(difference(k, a.at(i))));
 		}
 		distance.at(i) = {};
 		int n = 0; double min_r = min_value(distance);
@@ -246,20 +260,50 @@ public:
 			cout << "The coordinates of the self image particles of the nearest neibouring are:" << endl;
 
 			for (auto& k : min_Vector(min_r)) {
-				cout << "(" <<a->at(i).x + conv_vec.at(k).x << " " << a->at(i).y + conv_vec.at(k).y << " " << a->at(i).z + conv_vec.at(k).z << ")" << endl;
-				cout << "(" << -1 * (a->at(i).x + conv_vec.at(k).x) << " " << -1 * (a->at(i).y + conv_vec.at(k).y) << " " << -1 * (a->at(i).z + conv_vec.at(k).z) << ")" << endl;
+				cout << "(" <<a.at(i).x + conv_vec.at(k).x << " " << a.at(i).y + conv_vec.at(k).y << " " << a.at(i).z + conv_vec.at(k).z << ")" << endl;
+				cout << "(" << -1 * (a.at(i).x + conv_vec.at(k).x) << " " << -1 * (a.at(i).y + conv_vec.at(k).y) << " " << -1 * (a.at(i).z + conv_vec.at(k).z) << ")" << endl;
 			}
 
 			return;
 		};
+		
 		cout << "Distance for first - neibouring particle for atom"<<i<<" is : " << min_r<<endl;
 		cout << "input distance cutoff" << endl; double cutoff; cin >> cutoff;
-		cout << "The coordinate are" << endl<<"atom"<<i << " (" << a->at(i).x << " " << a->at(i).y << " " << a->at(i).z << ")" << endl;
+		cout << "The coordinate are" << endl<<"atom"<<i << " (" << a.at(i).x << " " << a.at(i).y << " " << a.at(i).z << ")" << endl;
 		for (auto& k : list) {
-			cout << "atom" << k << "(" << a->at(k).x << " " << a->at(k).y << " " << a->at(k).z << ")" << endl;
+			control = a.at(k);
+			cout << "atom" << k << "(" << a.at(k).x << " " << a.at(k).y << " " << a.at(k).z << ")" << endl;
+			frac_coor(control);
+			if (fmod(control.x,0.5*vect.x)==0&& fmod(control.y, 0.5*vect.y) == 0&& fmod(control.z,vect.z* 0.5) == 0) {
+				cout << "atom" << k << "(" << -1*a.at(k).x << " " << -1*a.at(k).y << " " << -1*a.at(k).z << ")" << endl;
+			}
+			if (fmod(control.x, 0.5 * vect.x)==0 ) {
+				cout << "atom" << k << "(" <<   a.at(k).x- conv_vec.at(0).x << " " << a.at(k).y - conv_vec.at(0).y << " " << a.at(k).z - conv_vec.at(0).z << ")" << endl;
+			}
+			if (fmod(control.x, 0.5 * vect.x) == 0 && fmod(control.y, 0.5 * vect.y)==0) {
+				cout << "atom" << k << "(" << a.at(k).x - conv_vec.at(0).x - conv_vec.at(1).x << " " <<  a.at(k).y - conv_vec.at(0).y - conv_vec.at(1).y << " " << a.at(k).z - conv_vec.at(0).z - conv_vec.at(1).z << ")" << endl;
+			}
+			if (fmod(control.x, 0.5 * vect.x) == 0 && fmod(control.z , vect.z* 0.5) == 0) {
+				cout << "atom" << k << "(" << a.at(k).x - conv_vec.at(0).x - conv_vec.at(2).x << " " <<  a.at(k).y - conv_vec.at(0).y - conv_vec.at(2).y << " " << a.at(k).z - conv_vec.at(0).z - conv_vec.at(2).z << ")" << endl;
+			}
+			if (fmod(control.y, 0.5 * vect.y) == 0 && fmod(control.z * vect.z, 0.5) == 0) {
+				cout << "atom" << k << "(" << a.at(k).x - conv_vec.at(1).x - conv_vec.at(2).x << " " <<  a.at(k).y - conv_vec.at(1).y - conv_vec.at(2).y << " " << a.at(k).z - conv_vec.at(1).z - conv_vec.at(2).z << ")" << endl;
+			}
+			if (fmod(control.y, 0.5 * vect.y) == 0) {
+				cout << "atom" << k << "(" << a.at(k).x - conv_vec.at(1).x << " " << a.at(k).y - conv_vec.at(1).y << " " << a.at(k).z - conv_vec.at(1).z << ")" << endl;
+			}
+			if (fmod(control.z , vect.z* 0.5) == 0) {
+				cout << "atom" << k << "(" << a.at(k).x - conv_vec.at(2).x << " " << a.at(k).y - conv_vec.at(2).y << " " << a.at(k).z - conv_vec.at(2).z << ")" << endl;
+			}
+
 		}
 		
 	}
+
+	double LJ_potential() {
+
+	}
+
 	double min_value(vector<double>& a) {
 		double min = *max_element(a.begin(), a.end());
 		for (auto& i : a) {
@@ -269,6 +313,8 @@ public:
 		}
 		return min;
 	};
+
+
 	vector<int> min_Vector(double &r) {
 		vector<int> list;
 		if (r == norm(conv_vec.at(0))) {
@@ -403,19 +449,19 @@ public:
 				}
 			}
 		}
+
 	}
 };
 
 class Atom_Othor : public Sim_Prim {
 public:
-	Atom_Othor(int x, int y, int z, lattice_vector la_vec, string atom_name, vector<double3> Basis) : Sim_Prim(x,y,z,la_vec) {
+	Atom_Othor(int x, int y, int z, lattice_vector la_vec, string atom_name, vector<double3> Basis) : Sim_Prim(x, y, z, la_vec) {
 		name = atom_name;
 		for (const double3& i : point) {
 			for (auto const& j : Basis) {
-				atom.push_back(i+(Todouble3(con_vec_mat*ToVector(j))));
+				atom.push_back(i + (Todouble3(con_vec_mat * ToVector(j))));
 			}
 		}
-
 	}
 };
 
@@ -603,7 +649,8 @@ Task_2_2:
 	// task 2
 	cout << "Return fractional coordinate of input cooredinate with respect to origin" << endl;
 Re:
-
+	cout << "input number of period in x y z direction" << endl;
+	cin >> x >> y >> z;
 	cout << "input a_1 in (x,y,z)" << endl;
 	cin >> latticee.a1.x >> latticee.a1.y >> latticee.a1.z;
 	cout << "input a_2 in (x,y,z)" << endl;
@@ -614,7 +661,7 @@ Re:
 		cout << "No coplanar sets of vectors! Plaese eneter new sets of vectors" << endl;
 		goto Re;
 	}
-	cell_4 = new Sim_Prim(2, 2, 2, latticee);
+	cell_4 = new Sim_Prim(x, y, z, latticee);
 
 
 	cout << "input an coordinate in \( x,y,z \)" << endl;
@@ -633,14 +680,20 @@ Re:
 Task_2_3:
 
 	cout << "neibouring list" << endl;
-
-	Num = 0;	
+	cout << "input number of period in x y z direction" << endl;
+	cin >> x >> y >> z;
+	Num = 0;
+Re2:
 	cout << "input a_1 in (x,y,z)" << endl;
 	cin >> latticee.a1.x >> latticee.a1.y >> latticee.a1.z;
 	cout << "input a_2 in (x,y,z)" << endl;
 	cin >> latticee.a2.x >> latticee.a2.y >> latticee.a2.z;
 	cout << "input a_3 in (x,y,z)" << endl;
 	cin >> latticee.a3.x >> latticee.a3.y >> latticee.a3.z;
+	if (dot(latticee.a1, cross(latticee.a2, latticee.a3)) == 0) {
+		cout << "No coplanar sets of vectors! Plaese eneter new sets of vectors" << endl;
+		goto Re2;
+	}
 	cout << "Basis setup: " << endl;
 	cout << "input number of atom in the basis" << endl;
 	cin >> Num;
@@ -654,7 +707,7 @@ Task_2_3:
 	cout << "input atom name" << endl;
 	cin >> atom_name;
 
-	cell_5 = new Atom_Othor(2, 2, 2, latticee, atom_name, basis);
+	cell_5 = new Atom_Othor(x, y, z, latticee, atom_name, basis);
 	cout << "Which atom number you would like to evaluate? There are total " << cell_5->atom_number()<<" atoms"<<endl;
 	cin >> n;
 	cout << "You are evaluating atom"<<n<<endl;
